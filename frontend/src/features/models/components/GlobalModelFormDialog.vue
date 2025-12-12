@@ -100,7 +100,7 @@
       <!-- 价格配置 -->
       <section class="space-y-3">
         <h4 class="font-medium text-sm">价格配置</h4>
-        <TieredPricingEditor v-model="tieredPricing" :show-cache1h="form.supported_capabilities?.includes('cache_1h')" />
+        <TieredPricingEditor ref="tieredPricingEditorRef" v-model="tieredPricing" :show-cache1h="form.supported_capabilities?.includes('cache_1h')" />
 
         <!-- 按次计费 -->
         <div class="flex items-center gap-3 pt-2 border-t">
@@ -161,6 +161,7 @@ const emit = defineEmits<{
 
 const { success, error: showError } = useToast()
 const submitting = ref(false)
+const tieredPricingEditorRef = ref<InstanceType<typeof TieredPricingEditor> | null>(null)
 
 // 阶梯计费配置（统一使用，固定价格就是单阶梯）
 const tieredPricing = ref<TieredPricingConfig | null>(null)
@@ -275,6 +276,10 @@ async function handleSubmit() {
     return
   }
 
+  // 获取包含自动计算缓存价格的最终数据
+  const finalTiers = tieredPricingEditorRef.value?.getFinalTiers()
+  const finalTieredPricing = finalTiers ? { tiers: finalTiers } : tieredPricing.value
+
   submitting.value = true
   try {
     if (isEditMode.value && props.model) {
@@ -283,7 +288,7 @@ async function handleSubmit() {
         description: form.value.description,
         // 使用 null 而不是 undefined 来显式清空字段
         default_price_per_request: form.value.default_price_per_request ?? null,
-        default_tiered_pricing: tieredPricing.value,
+        default_tiered_pricing: finalTieredPricing,
         default_supports_streaming: form.value.default_supports_streaming,
         default_supports_image_generation: form.value.default_supports_image_generation,
         default_supports_vision: form.value.default_supports_vision,
@@ -300,7 +305,7 @@ async function handleSubmit() {
         display_name: form.value.display_name!,
         description: form.value.description,
         default_price_per_request: form.value.default_price_per_request || undefined,
-        default_tiered_pricing: tieredPricing.value,
+        default_tiered_pricing: finalTieredPricing,
         default_supports_streaming: form.value.default_supports_streaming,
         default_supports_image_generation: form.value.default_supports_image_generation,
         default_supports_vision: form.value.default_supports_vision,

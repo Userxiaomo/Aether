@@ -48,7 +48,7 @@
       <!-- 价格配置 -->
       <div class="space-y-4">
         <h4 class="font-semibold text-sm border-b pb-2">价格配置</h4>
-        <TieredPricingEditor v-model="tieredPricing" :show-cache1h="showCache1h" />
+        <TieredPricingEditor ref="tieredPricingEditorRef" v-model="tieredPricing" :show-cache1h="showCache1h" />
 
         <!-- 按次计费 -->
         <div class="flex items-center gap-3 pt-2 border-t">
@@ -170,6 +170,8 @@ const emit = defineEmits<{
 }>()
 
 const { error: showError, success: showSuccess } = useToast()
+
+const tieredPricingEditorRef = ref<InstanceType<typeof TieredPricingEditor> | null>(null)
 
 const isEditing = computed(() => !!props.editingModel)
 
@@ -325,11 +327,15 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
+    // 获取包含自动计算缓存价格的最终数据
+    const finalTiers = tieredPricingEditorRef.value?.getFinalTiers()
+    const finalTieredPricing = finalTiers ? { tiers: finalTiers } : tieredPricing.value
+
     if (isEditing.value && props.editingModel) {
       // 编辑模式
       // 注意：使用 null 而不是 undefined 来显式清空字段（undefined 会被 JSON 序列化忽略）
       await updateModel(props.providerId, props.editingModel.id, {
-        tiered_pricing: tieredPricing.value,
+        tiered_pricing: finalTieredPricing,
         price_per_request: form.value.price_per_request ?? null,
         supports_vision: form.value.supports_vision,
         supports_function_calling: form.value.supports_function_calling,
@@ -346,7 +352,7 @@ async function handleSubmit() {
         global_model_id: form.value.global_model_id,
         provider_model_name: selectedModel?.name || '',
         // 只有修改了才提交，否则传 undefined 让后端继承 GlobalModel 配置
-        tiered_pricing: tieredPricingModified.value ? tieredPricing.value : undefined,
+        tiered_pricing: tieredPricingModified.value ? finalTieredPricing : undefined,
         price_per_request: form.value.price_per_request,
         supports_vision: form.value.supports_vision,
         supports_function_calling: form.value.supports_function_calling,
